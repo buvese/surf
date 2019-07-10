@@ -41,6 +41,10 @@ type Submittable interface {
 	// IsChecked returns a boolean indicating if the checkbox is active or inactive.
 	IsChecked(name string) (bool, error)
 
+	// SelectOptionValues returns all available option values of a select form element whose name matches.
+	// If name is not found, error is returned.
+	SelectOptionValues(name string) (url.Values, error)
+
 	// SelectByOptionLabel sets the current value of a select form element acording to the
 	// options label.  If the element is a select multiple, multiple options may be selected.
 	SelectByOptionLabel(name string, optionLabel ...string) error
@@ -211,6 +215,16 @@ func (f *Form) RemoveValue(name, val string) error {
 		f.fields[name] = save
 	}
 	return nil
+}
+
+// SelectOptionValues returns all available option values of a select form element whose name matches.
+// If name is not found, error is returned.
+func (f *Form) SelectOptionValues(name string) (url.Values, error) {
+	s, ok := f.selects[name]
+	if !ok {
+		return nil, errors.NewElementNotFound("No select element found with name '%s'.", name)
+	}
+	return s.values, nil
 }
 
 // SelectByOptionLabel sets the current value of a select form element acording to the

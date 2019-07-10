@@ -18,6 +18,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/headzoo/surf/errors"
 	"github.com/headzoo/surf/jar"
+	"golang.org/x/net/html/charset"
 )
 
 // Attribute represents a Browser capability.
@@ -161,6 +162,9 @@ type Browsable interface {
 	// Download writes the contents of the document to the given writer.
 	Download(o io.Writer) (int64, error)
 
+	// DownloadUtf8 writes the contents of the document encoded as utf8 to the given writer.
+	DownloadUtf8(o io.Writer) (int64, error)
+
 	// Url returns the page URL as a string.
 	Url() *url.URL
 
@@ -215,6 +219,9 @@ type Browser struct {
 
 	// body of the current page.
 	body []byte
+
+	// bodyUtf8 is the utf8 encoding of the current page.
+	bodyUtf8 []byte
 }
 
 // buildClient instanciates the *http.Client used by the browser
@@ -580,6 +587,12 @@ func (bow *Browser) Download(o io.Writer) (int64, error) {
 	return io.Copy(o, buff)
 }
 
+// DownloadUtf8 writes the contents of the document encoded as utf8 to the given writer.
+func (bow *Browser) DownloadUtf8(o io.Writer) (int64, error) {
+	buff := bytes.NewBuffer(bow.bodyUtf8)
+	return io.Copy(o, buff)
+}
+
 // Url returns the page URL as a string.
 func (bow *Browser) Url() *url.URL {
 	if bow.state.Response == nil {
@@ -733,7 +746,18 @@ func (bow *Browser) httpRequest(req *http.Request) error {
 		return err
 	}
 
-	buff := bytes.NewBuffer(bow.body)
+	r, err := charset.NewReader(bytes.NewBuffer(bow.body), resp.Header.Get("Content-Type"))
+
+	if err != nil {
+		return err
+	}
+
+	bow.bodyUtf8, err = ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	buff := bytes.NewBuffer(bow.bodyUtf8)
 	dom, err := goquery.NewDocumentFromReader(buff)
 	if err != nil {
 		return err
